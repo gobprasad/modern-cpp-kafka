@@ -259,8 +259,8 @@ private:
     void seekToBeginningOrEnd(const TopicPartitions& tps, bool toBeginning, std::chrono::milliseconds timeout);
     std::map<TopicPartition, Offset> getOffsets(const TopicPartitions& tps, bool atBeginning) const;
 
-    // Internal interface for "assign"
-    void _assign(const TopicPartitions& tps);
+    enum class PartitionsRebalanceEvent { Assign, Revoke, IncrementalAssign, IncrementalUnassign };
+    void changeAssignment(PartitionsRebalanceEvent event, const TopicPartitions& tps);
 
     std::string  _groupId;
 
@@ -406,24 +406,31 @@ KafkaConsumer::subscription() const
     return getTopics(rk_topics.get());
 }
 
-// Assign for Topic/Partition level, -- internal interface
 inline void
-KafkaConsumer::_assign(const TopicPartitions& tps)
+KafkaConsumer::changeAssignment(PartitionsRebalanceEvent event, const TopicPartitions& tps)
 {
-    std::string tpsStr = toString(tps);
-    KAFKA_API_DO_LOG(Log::Level::Info, "will assign with TopicPartitions[%s]", tpsStr.c_str());
-
     auto rk_tps = rd_kafka_topic_partition_list_unique_ptr(createRkTopicPartitionList(tps));
 
-    rd_kafka_resp_err_t err = rd_kafka_assign(getClientHandle(), (rk_tps->cnt > 0) ? rk_tps.get() : nullptr);
-    KAFKA_THROW_IF_WITH_RESP_ERROR(err);
+    std::unique_ptr<Error> result;
+    switch (event)
+    {
+        case PartitionsRebalanceEvent::Assign:
+        case PartitionsRebalanceEvent::Revoke:
+            result = std::make_unique<SimpleError>(rd_kafka_assign(getClientHandle(), (rk_tps->cnt > 0) ? rk_tps.get() : nullptr));
+            break;
+        case PartitionsRebalanceEvent::IncrementalAssign:
+            result = std::make_unique<Error>(rd_kafka_incremental_assign(getClientHandle(), rk_tps.get()));
+            break;
+        case PartitionsRebalanceEvent::IncrementalUnassign:
+            result = std::make_unique<Error>(rd_kafka_incremental_unassign(getClientHandle(), rk_tps.get()));
+            break;
+    }
 
+    KAFKA_THROW_IF_WITH_ERROR(*result);
     _assignment = tps;
-
-    KAFKA_API_DO_LOG(Log::Level::Info, "assigned with TopicPartitions[%s]", tpsStr.c_str());
 }
 
-// Assign for Topic/Partition level, -- external interface
+// Assign Topic-Partitions
 inline void
 KafkaConsumer::assign(const TopicPartitions& tps)
 {
@@ -434,7 +441,7 @@ KafkaConsumer::assign(const TopicPartitions& tps)
 
     _userAssignment = tps;
 
-    _assign(tps);
+    changeAssignment(PartitionsRebalanceEvent::Assign, tps);
 }
 
 // Assignment
@@ -711,40 +718,38 @@ KafkaConsumer::onRebalance(rd_kafka_resp_err_t err, rd_kafka_topic_partition_lis
     TopicPartitions tps = getTopicPartitions(rk_partitions);
     std::string tpsStr = toString(tps);
 
-    switch(err)
+    if (err != RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS && err != RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS)
     {
-        case RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS:
-            KAFKA_API_DO_LOG(Log::Level::Info, "invoked re-balance callback for event[ASSIGN_PARTITIONS]. topic-partitions[%s]", tpsStr.c_str());
+        KAFKA_API_DO_LOG(Log::Level::Err, "unknown re-balance event[%d], topic-partitions[%s]",  err, tpsStr.c_str());
+        return;
+    }
 
-            // Assign with a brand new full list
-            _assign(tps);
-            break;
+    const char* protocol = rd_kafka_rebalance_protocol(getClientHandle());
+    bool cooperativeEnabled = (protocol && (std::string(protocol) == "COOPERATIVE"));
 
-        case RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS:
-            KAFKA_API_DO_LOG(Log::Level::Info, "invoked re-balance callback for event[REVOKE_PARTITIONS]. topic-partitions[%s]", tpsStr.c_str());
+    KAFKA_API_DO_LOG(Log::Level::Info, "re-balance event triggered[%s], cooperative[%s], topic-partitions[%s]",
+                     err == RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS ? "ASSIGN_PARTITIONS" : "REVOKE_PARTITIONS",
+                     cooperativeEnabled ? "enabled" : "disabled",
+                     tpsStr.c_str());
 
-            _offsetsToStore.clear();
+    PartitionsRebalanceEvent event = (err == RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS ?
+                                         (cooperativeEnabled ? PartitionsRebalanceEvent::IncrementalAssign : PartitionsRebalanceEvent::Assign)
+                                         : (cooperativeEnabled ? PartitionsRebalanceEvent::IncrementalUnassign : PartitionsRebalanceEvent::Revoke));
 
-            // For "manual commit" cases, user must take all the responsibility to commit while necessary.
-            //   -- thus, they must register a valid rebalance event listener and do the "commit things" properly.
-
-            // Revoke all previously assigned partitions.
-            // Normally, another "ASSIGN_PARTITIONS" event would be received later.
-            _assign(TopicPartitions()); // with null
-            break;
-
-        default:
-            KAFKA_API_DO_LOG(Log::Level::Err, "invoked re-balance callback for event[unknown: %d]. topic-partitions[%s]",  err, tpsStr.c_str());
-
-            _assign(TopicPartitions()); // with null
-            return; // would not call user's rebalance event listener
+    if (err == RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS)
+    {
+        changeAssignment(event, tps);
     }
 
     if (_rebalanceCb)
     {
-        Consumer::RebalanceEventType et =
-            (err == RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS ? Consumer::RebalanceEventType::PartitionsAssigned : Consumer::RebalanceEventType::PartitionsRevoked);
-        _rebalanceCb(et, tps);
+        _rebalanceCb(err == RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS ? Consumer::RebalanceEventType::PartitionsAssigned : Consumer::RebalanceEventType::PartitionsRevoked,
+                     tps);
+    }
+
+    if (err == RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS)
+    {
+        changeAssignment(event, cooperativeEnabled ? tps : TopicPartitions{});
     }
 }
 

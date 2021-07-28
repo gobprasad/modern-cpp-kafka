@@ -854,6 +854,68 @@ TEST(KafkaManualCommitConsumer, OffsetCommitAndPosition)
     }
 }
 
+TEST(KafkaManualCommitConsumer, CommitOffsetBeforeRevolkingPartitions)
+{
+    const Topic     topic     = Utility::getRandomString();
+    const Partition partition = 0;
+
+    std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
+
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+
+    // Prepare some messages to send
+    const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
+        {NullHeaders, "key1", "value1"},
+        {NullHeaders, "key2", "value2"},
+        {NullHeaders, "key3", "value3"},
+        {NullHeaders, "key4", "value4"},
+    };
+
+    // Send the messages
+    KafkaTestUtility::ProduceMessages(topic, partition, messages);
+
+    // Prepare poperties for consumers
+    auto props = KafkaTestUtility::GetKafkaClientCommonConfig()
+                    .put(ConsumerConfig::AUTO_OFFSET_RESET, "earliest")
+                    .put(ConsumerConfig::GROUP_ID, Utility::getRandomString());
+
+    {
+        // First consumer starts
+        KafkaManualCommitConsumer consumer(props);
+
+
+        consumer.subscribe({topic},
+                           [&consumer](Consumer::RebalanceEventType et, const TopicPartitions& tps) {
+                               if (et == Consumer::RebalanceEventType::PartitionsAssigned) {
+                                   std::cout << "[" << Utility::getCurrentTime() << "] " << consumer.name() << " assigned partitions: " << toString(tps) << std::endl;
+                               } else {
+                                   consumer.commitSync();
+                                   std::cout << "[" << Utility::getCurrentTime() << "] " << consumer.name() << " sync-committed offsets"  << std::endl;
+                                   std::cout << "[" << Utility::getCurrentTime() << "] " << consumer.name() << " will revolke partitions: " << toString(tps) << std::endl;
+                               }
+                           });
+
+        // Get all messages
+        auto records = KafkaTestUtility::ConsumeMessagesUntilTimeout(consumer);
+        //for (const auto& record: records) tpos[TopicPartition{record.topic(), record.partition()}] = record.offset() + 1;
+        EXPECT_EQ(messages.size(), records.size());
+    }
+
+    // Send one more message
+    KafkaTestUtility::ProduceMessages(topic, partition, {{NullHeaders, "key4", "value4"}});
+
+    {
+        // Second consumer starts
+        KafkaManualCommitConsumer consumer(props);
+
+        consumer.subscribe({topic});
+
+        // Get all messages (but none)
+        auto records = KafkaTestUtility::ConsumeMessagesUntilTimeout(consumer);
+        EXPECT_EQ(1, records.size());
+    }
+}
+
 TEST(KafkaAutoCommitConsumer, OffsetCommitAndPosition)
 {
     const Topic     topic     = Utility::getRandomString();
@@ -1340,7 +1402,7 @@ TEST(KafkaAutoCommitConsumer, PauseAndResume)
     // Subscribe topics
     consumer.subscribe({topic1, topic2});
 
-    // Poll 1 messaged from topic1
+    // Poll 1 message from topic1
     auto records = consumer.poll(KafkaTestUtility::MAX_POLL_MESSAGES_TIMEOUT);
     ASSERT_EQ(1, records.size());
     EXPECT_EQ(std::get<2>(messages[0]), records.front().value().toString());
@@ -1385,6 +1447,110 @@ TEST(KafkaAutoCommitConsumer, PauseAndResume)
     EXPECT_EQ(std::get<2>(messages[2]), records.front().value().toString());
 
     consumer.close();
+}
+
+TEST(KafkaManualCommitConsumer, SeekAfterPause)
+{
+    const Topic topic = Utility::getRandomString();
+
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+
+    // Produce messages towards topic
+    const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
+        {Headers{}, "", "msg1"},
+        {Headers{}, "", "msg2"},
+        {Headers{}, "", "msg3"}
+    };
+    KafkaTestUtility::ProduceMessages(topic, 0, messages);
+
+    // An auto-commit Consumer
+    const auto props = KafkaTestUtility::GetKafkaClientCommonConfig()
+                        .put(ConsumerConfig::AUTO_OFFSET_RESET, "earliest")
+                        .put(ConsumerConfig::MAX_POLL_RECORDS,  "1");
+    KafkaManualCommitConsumer consumer(props);
+    std::cout << "[" << Utility::getCurrentTime() << "] " << consumer.name() << " started" << std::endl;
+
+    // Subscribe topics
+    consumer.subscribe({topic});
+
+    // Poll 1 message from topic
+    auto records = consumer.poll(KafkaTestUtility::MAX_POLL_MESSAGES_TIMEOUT);
+    ASSERT_EQ(1, records.size());
+    EXPECT_EQ(std::get<2>(messages[0]), records.front().value().toString());
+
+    // First, pause the partition
+    consumer.pause();
+
+    // Then, seek back (to the very first offset)
+    consumer.seek({topic, 0}, records[0].offset());
+
+    // Could not poll any message (with partition paused)
+    records = KafkaTestUtility::ConsumeMessagesUntilTimeout(consumer);
+    EXPECT_EQ(0, records.size());
+
+    // Resume the partition (and continue)
+    consumer.resume();
+
+    // Then would be able to poll from the very beginning
+    records = KafkaTestUtility::ConsumeMessagesUntilTimeout(consumer);
+    ASSERT_EQ(messages.size(), records.size());
+    for (std::size_t i = 0; i < messages.size(); ++i)
+    {
+        EXPECT_EQ(std::get<2>(messages[i]), records[i].value().toString());
+    }
+}
+
+TEST(KafkaManualCommitConsumer, DISABLED_SeekBeforePause)
+{
+    const Topic topic = Utility::getRandomString();
+
+    KafkaTestUtility::CreateKafkaTopic(topic, 1, 3);
+
+    // Produce messages towards topic
+    const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
+        {Headers{}, "", "msg1"},
+        {Headers{}, "", "msg2"},
+        {Headers{}, "", "msg3"}
+    };
+    KafkaTestUtility::ProduceMessages(topic, 0, messages);
+
+    // An auto-commit Consumer
+    const auto props = KafkaTestUtility::GetKafkaClientCommonConfig()
+                        .put(ConsumerConfig::AUTO_OFFSET_RESET, "earliest")
+                        .put(ConsumerConfig::MAX_POLL_RECORDS,  "1")
+                        .put("log_level", "7")
+                        .put("debug",     "all");
+    KafkaManualCommitConsumer consumer(props);
+    std::cout << "[" << Utility::getCurrentTime() << "] " << consumer.name() << " started" << std::endl;
+
+    // Subscribe topics
+    consumer.subscribe({topic});
+
+    // Poll 1 message from topic
+    auto records = consumer.poll(KafkaTestUtility::MAX_POLL_MESSAGES_TIMEOUT);
+    ASSERT_EQ(1, records.size());
+    EXPECT_EQ(std::get<2>(messages[0]), records.front().value().toString());
+
+    // First, seek back (to the very first offset)
+    consumer.seek({topic, 0}, records[0].offset());
+
+    // Then, pause the partition
+    consumer.pause();
+
+    // Could not poll any message (with partition paused)
+    records = KafkaTestUtility::ConsumeMessagesUntilTimeout(consumer);
+    EXPECT_EQ(0, records.size());
+
+    // Resume the partition (and continue)
+    consumer.resume();
+
+    // Then would be able to poll from the very beginning
+    records = KafkaTestUtility::ConsumeMessagesUntilTimeout(consumer);
+    ASSERT_EQ(messages.size(), records.size());
+    for (std::size_t i = 0; i < messages.size(); ++i)
+    {
+        EXPECT_EQ(std::get<2>(messages[i]), records[i].value().toString());
+    }
 }
 
 TEST(KafkaAutoCommitConsumer, PauseStillWorksAfterRebalance)
@@ -1712,5 +1878,64 @@ TEST(KafkaAutoCommitConsumer, AutoCreateTopics)
 
     // Would never make it!
     EXPECT_TRUE(consumer.assignment().empty());
+}
+
+TEST(KafkaAutoCommitConsumer, CooperativeRebalance)
+{
+    constexpr int NUM_TOPICS     = 3;
+    constexpr int NUM_PARTITIONS = 5;
+
+    const std::string topicPrefix  = Utility::getRandomString();
+    for (int i = 0; i < NUM_TOPICS; i++)
+    {
+        Topic topic = topicPrefix + std::to_string(i);
+        KafkaTestUtility::CreateKafkaTopic(topic, NUM_PARTITIONS, 1);
+    }
+
+    const std::string groupId = Utility::getRandomString();
+    const std::string topicPattern = "^" + topicPrefix + "\\.*";
+    auto startConsumer = [groupId, topicPattern](const std::string& clientId, int runningSec) {
+        TopicPartitions partitionsJustRevoked;
+        auto rebalanceCb = [clientId, &partitionsJustRevoked](Consumer::RebalanceEventType et, const TopicPartitions& tps) {
+            if (et == Consumer::RebalanceEventType::PartitionsAssigned) {
+                std::cout << "[" << Utility::getCurrentTime() << "] " << clientId << " assigned partitions: " << toString(tps) << std::endl;
+                EXPECT_TRUE(std::none_of(tps.cbegin(), tps.cend(), [&partitionsJustRevoked](const auto& tp) { return partitionsJustRevoked.count(tp); }));
+            } else if (et == Consumer::RebalanceEventType::PartitionsRevoked) {
+                std::cout << "[" << Utility::getCurrentTime() << "] " << clientId << " unassigned partitions: " << toString(tps) << std::endl;
+                partitionsJustRevoked = tps;
+            }
+        };
+
+        Properties props = KafkaTestUtility::GetKafkaClientCommonConfig()
+                             .put(ConsumerConfig::CLIENT_ID, clientId)
+                             .put(ConsumerConfig::GROUP_ID,  groupId)
+                             .put(ConsumerConfig::PARTITION_ASSIGNMENT_STRATEGY, "cooperative-sticky");
+
+        KafkaTestUtility::PrintDividingLine(clientId + " is starting");
+
+        KafkaAutoCommitConsumer consumer(props);
+
+        consumer.subscribe({topicPattern}, rebalanceCb);
+
+        for (int i = 0; i < runningSec; ++i) {
+            consumer.poll(std::chrono::seconds(1));
+        }
+
+        KafkaTestUtility::PrintDividingLine(clientId + " is quitting");
+    };
+
+    KafkaTestUtility::JoiningThread consumer1Thread(startConsumer, "consumer1", 20);
+
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+
+    KafkaTestUtility::JoiningThread consumer2Thread(startConsumer, "consumer2", 10);
+
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+
+    KafkaTestUtility::JoiningThread consumer3Thread(startConsumer, "consumer3", 10);
+
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+
+    KafkaTestUtility::JoiningThread consumer4Thread(startConsumer, "consumer4", 10);
 }
 
