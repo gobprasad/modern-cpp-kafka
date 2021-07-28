@@ -81,7 +81,7 @@ inline Kafka::Properties
 GetKafkaClientCommonConfig()
 {
     auto kafkaBrokerListEnv = GetEnvVar("KAFKA_BROKER_LIST");
-    EXPECT_TRUE(kafkaBrokerListEnv);
+    EXPECT_TRUE(!!kafkaBrokerListEnv);
     if (!kafkaBrokerListEnv) return Kafka::Properties{};
 
     Kafka::Properties props;

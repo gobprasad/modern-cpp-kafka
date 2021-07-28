@@ -23,7 +23,7 @@ TEST(KafkaAutoCommitConsumer, BasicPoll)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // The auto-commit consumer
     KafkaAutoCommitConsumer consumer(KafkaTestUtility::GetKafkaClientCommonConfig());
@@ -89,7 +89,7 @@ TEST(KafkaAutoCommitConsumer, PollWithHeaders)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // The auto-commit consumer
     KafkaAutoCommitConsumer consumer(KafkaTestUtility::GetKafkaClientCommonConfig());
@@ -188,7 +188,7 @@ TEST(KafkaAutoCommitConsumer, RecordWithEmptyOrNullFields)
     std::cout << "[" << Utility::getCurrentTime() << "] Try with messages with empty fields" << std::endl;
     {
         const Topic topic = Utility::getRandomString();
-        KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+        KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
         const std::string emptyStr{};
         const auto emptyField = ConstBuffer(emptyStr.c_str(), emptyStr.size());
@@ -228,7 +228,7 @@ TEST(KafkaAutoCommitConsumer, RecordWithEmptyOrNullFields)
     std::cout << "[" << Utility::getCurrentTime() << "] Try with messages with NULL fields" << std::endl;
     {
         const Topic topic = Utility::getRandomString();
-        KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+        KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
         auto recordWithNullFields = Kafka::ProducerRecord(topic, Kafka::NullKey, Kafka::NullValue);
 
@@ -270,7 +270,7 @@ TEST(KafkaAutoCommitConsumer, SeekAndPoll)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // The auto-commit consumer
     const auto props = KafkaTestUtility::GetKafkaClientCommonConfig()
@@ -378,7 +378,7 @@ TEST(KafkaManualCommitConsumer, NoOffsetCommitCallback)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Prepare some messages to send
     const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
@@ -424,7 +424,7 @@ TEST(KafkaManualCommitConsumer, OffsetCommitCallback)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Prepare some messages to send
     const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
@@ -487,7 +487,7 @@ TEST(KafkaManualCommitConsumer, OffsetCommitCallbackTriggeredBeforeClose)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Prepare some messages to send
     const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
@@ -548,7 +548,7 @@ TEST(KafkaManualCommitConsumer, OffsetCommitCallback_ManuallyPollEvents)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Prepare some messages to send
     const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
@@ -615,7 +615,7 @@ TEST(KafkaManualCommitConsumer, OffsetCommitAndPosition)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Prepare some messages to send
     const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
@@ -861,7 +861,7 @@ TEST(KafkaAutoCommitConsumer, OffsetCommitAndPosition)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Prepare some messages to send
     std::vector<std::tuple<Headers, std::string, std::string>> messages = {
@@ -980,7 +980,7 @@ TEST(KafkaAutoCommitConsumer, RebalancePartitionsAssign)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "], group[" << group << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Prepare the consumer
     const auto props = KafkaTestUtility::GetKafkaClientCommonConfig().put(ConsumerConfig::GROUP_ID, group);
@@ -1074,7 +1074,7 @@ TEST(KafkaAutoCommitConsumer, PartitionAssignment)
     const Partition partition1 = 0;
     const Partition partition2 = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Start consumer
     KafkaAutoCommitConsumer consumer(KafkaTestUtility::GetKafkaClientCommonConfig());
@@ -1095,7 +1095,7 @@ TEST(KafkaAutoCommitConsumer, TopicSubscription)
     const Topics topics = { Utility::getRandomString(), Utility::getRandomString(), Utility::getRandomString() };
 
     constexpr int NUM_PARTITIONS = 5;
-    constexpr int REPLICA_FACTOR = 3;
+    const int REPLICA_FACTOR = KafkaTestUtility::GetNumberOfKafkaBrokers();
     for (const auto& topic: topics) KafkaTestUtility::CreateKafkaTopic(topic, NUM_PARTITIONS, REPLICA_FACTOR);
 
     // Start consumer
@@ -1118,7 +1118,7 @@ TEST(KafkaAutoCommitConsumer, SubscribeUnsubscribeThenAssign)
     const Topic     topic     = Utility::getRandomString();
     const Partition partition = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Start consumer
     KafkaAutoCommitConsumer consumer(KafkaTestUtility::GetKafkaClientCommonConfig());
@@ -1153,7 +1153,7 @@ TEST(KafkaAutoCommitConsumer, AssignUnassignAndSubscribe)
     const Partition partition = 0;
 
     constexpr int NUM_PARTITIONS = 5;
-    constexpr int REPLICA_FACTOR = 3;
+    const int REPLICA_FACTOR = KafkaTestUtility::GetNumberOfKafkaBrokers();
     KafkaTestUtility::CreateKafkaTopic(topic, NUM_PARTITIONS, REPLICA_FACTOR);
 
     // Start consumer
@@ -1202,7 +1202,7 @@ TEST(KafkaAutoCommitConsumer, WrongOperation_SubscribeThenAssign)
     const Topic     topic     = Utility::getRandomString();
     const Partition partition = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Start consumer
     KafkaAutoCommitConsumer consumer(KafkaTestUtility::GetKafkaClientCommonConfig());
@@ -1224,7 +1224,7 @@ TEST(KafkaAutoCommitConsumer, WrongOperation_AssignThenSubscribe)
     const Topic     topic     = Utility::getRandomString();
     const Partition partition = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Start consumer
     KafkaAutoCommitConsumer consumer(KafkaTestUtility::GetKafkaClientCommonConfig());
@@ -1243,7 +1243,7 @@ TEST(KafkaAutoCommitConsumer, WrongOperation_AssignThenSubscribe)
 TEST(KafkaClient, GetBrokerMetadata)
 {
     const Topic topic = Utility::getRandomString();
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Start consumer
     KafkaAutoCommitConsumer consumer(KafkaTestUtility::GetKafkaClientCommonConfig());
@@ -1277,7 +1277,7 @@ TEST(KafkaClient, GetBrokerMetadata)
 TEST(KafkaAutoCommitConsumer, SubscribeAndPoll)
 {
     const Topic topic = Utility::getRandomString();
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     const auto props = KafkaTestUtility::GetKafkaClientCommonConfig().put(ConsumerConfig::ENABLE_PARTITION_EOF, "true");
 
@@ -1319,8 +1319,8 @@ TEST(KafkaAutoCommitConsumer, PauseAndResume)
     const Topic topic1 = Utility::getRandomString();
     const Topic topic2 = Utility::getRandomString();
 
-    KafkaTestUtility::CreateKafkaTopic(topic1, 5, 3);
-    KafkaTestUtility::CreateKafkaTopic(topic2, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic1, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
+    KafkaTestUtility::CreateKafkaTopic(topic2, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Produce messages towards topic1
     const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
@@ -1392,8 +1392,8 @@ TEST(KafkaAutoCommitConsumer, PauseStillWorksAfterRebalance)
     const Topic topic1 = Utility::getRandomString();
     const Topic topic2 = Utility::getRandomString();
 
-    KafkaTestUtility::CreateKafkaTopic(topic1, 5, 3);
-    KafkaTestUtility::CreateKafkaTopic(topic2, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic1, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
+    KafkaTestUtility::CreateKafkaTopic(topic2, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Start the consumer1
     auto props1 = KafkaTestUtility::GetKafkaClientCommonConfig()
@@ -1470,8 +1470,8 @@ TEST(KafkaManualCommitConsumer, OffsetsForTime)
     const Topic     topic2     = Utility::getRandomString();
     const Partition partition2 = 1;
 
-    KafkaTestUtility::CreateKafkaTopic(topic1, 5, 3);
-    KafkaTestUtility::CreateKafkaTopic(topic2, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic1, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
+    KafkaTestUtility::CreateKafkaTopic(topic2, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     using namespace std::chrono;
 
@@ -1583,7 +1583,7 @@ TEST(KafkaManualCommitConsumer, RecoverByTime)
     const Topic     topic     = Utility::getRandomString();
     const Partition partition = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Prepare some messages to send
     const std::vector<std::pair<std::string, std::string>> messages = {
@@ -1691,7 +1691,7 @@ TEST(KafkaManualCommitConsumer, RecoverByTime)
 TEST(KafkaAutoCommitConsumer, AutoCreateTopics)
 {
     const Topic topic = Utility::getRandomString();
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     KafkaAutoCommitConsumer consumer(KafkaTestUtility::GetKafkaClientCommonConfig()
                                      .put("allow.auto.create.topics", "true"));

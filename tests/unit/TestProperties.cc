@@ -17,7 +17,7 @@ TEST(Properties, Basic)
 
     // Fetch a property
     auto getBootstrapServers = props.getProperty("bootstrap.servers");
-    EXPECT_TRUE(getBootstrapServers);
+    EXPECT_TRUE(!!getBootstrapServers);
     EXPECT_EQ("127.0.0.1:9000,127.0.0.1:9001", *getBootstrapServers);
 
     // Remove a property

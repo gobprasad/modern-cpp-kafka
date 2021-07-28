@@ -16,7 +16,7 @@ TEST(AdminClient, createListDeleteTopics)
 
     const Topics topics = {Utility::getRandomString(), Utility::getRandomString()};
     const int numPartitions = 5;
-    const int replicaFactor = 3;
+    const int replicaFactor = KafkaTestUtility::GetNumberOfKafkaBrokers();
 
     std::cout << "[" << Utility::getCurrentTime() << "] topics: " << toString(topics) << std::endl;
 
@@ -82,7 +82,7 @@ TEST(AdminClient, DuplicatedCreateDeleteTopics)
 {
     const Topic topic(Utility::getRandomString());
     const int numPartitions = 5;
-    const int replicaFactor = 3;
+    const int replicaFactor = KafkaTestUtility::GetNumberOfKafkaBrokers();
 
     AdminClient adminClient(KafkaTestUtility::GetKafkaClientCommonConfig());
     std::cout << "[" << Utility::getCurrentTime() << "] " << adminClient.name() << " started" << std::endl;

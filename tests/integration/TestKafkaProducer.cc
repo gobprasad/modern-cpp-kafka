@@ -23,7 +23,7 @@ TEST(KafkaSyncProducer, SendMessagesWithAcks1)
     const Topic     topic     = Utility::getRandomString();
     const Partition partition = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Properties for the producer
     const auto props = KafkaTestUtility::GetKafkaClientCommonConfig().put(ProducerConfig::ACKS, "1");
@@ -69,7 +69,7 @@ TEST(KafkaSyncProducer, SendMessagesWithAcksAll)
     const Topic     topic     = Utility::getRandomString();
     const Partition partition = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Properties for the producer
     const auto props = KafkaTestUtility::GetKafkaClientCommonConfig().put(ProducerConfig::ACKS, "all");
@@ -147,7 +147,7 @@ TEST(KafkaSyncProducer, InSyncBrokersAckTimeout)
     const Topic     topic     = Utility::getRandomString();
     const Partition partition = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     const auto key    = std::string(100000, 'a');
     const auto value  = std::string(100000, 'a');
@@ -184,7 +184,7 @@ TEST(KafkaSyncProducer, DefaultPartitioner)
     KafkaSyncProducer producer(KafkaTestUtility::GetKafkaClientCommonConfig());
 
     const Topic topic = Utility::getRandomString();
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     std::map<Partition, int> partitionCounts;
     static constexpr int MSG_NUM = 20;
@@ -207,7 +207,7 @@ TEST(KafkaSyncProducer, DefaultPartitioner)
 TEST(KafkaSyncProducer, TryOtherPartitioners)
 {
     const Topic topic = Utility::getRandomString();
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Try another "partitioner" instead of the default one
     {
@@ -275,7 +275,7 @@ TEST(KafkaAsyncProducer, MessageDeliveryCallback)
     const Topic     topic     = Utility::getRandomString();
     const Partition partition = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Properties for the producer
     std::set<ProducerRecord::Id> msgIdsSent;
@@ -325,7 +325,7 @@ TEST(KafkaAsyncProducer, DeliveryCallback_ManuallyPollEvents)
     const Topic     topic     = Utility::getRandomString();
     const Partition partition = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Properties for the producer
     std::set<ProducerRecord::Id> msgIdsSent;
@@ -378,7 +378,7 @@ TEST(KafkaAsyncProducer, NoBlockSendingWhileQueueIsFull_ManuallyPollEvents)
     const Topic topic       = Utility::getRandomString();
     const auto  appThreadId = std::this_thread::get_id();
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     int msgSentCnt  = 0;
 
@@ -451,7 +451,7 @@ TEST(KafkaAsyncProducer, TooLargeMessageForBroker)
     const Topic     topic     = Utility::getRandomString();
     const Partition partition = 0;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     const auto value  = std::string(2048, 'a');
     const auto record = ProducerRecord(topic, partition, Key(nullptr, 0), Value(value.c_str(), value.size()));
@@ -484,7 +484,7 @@ TEST(KafkaAsyncProducer, TooLargeMessageForBroker)
 TEST(KafkaAsyncProducer, CopyRecordValueWithinSend)
 {
     const Topic topic = Utility::getRandomString();
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     const auto props = KafkaTestUtility::GetKafkaClientCommonConfig()
                        .put(ProducerConfig::PARTITIONER, "murmur2"); // `ProducerRecord`s with empty key are mapped to a single partition
