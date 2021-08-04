@@ -110,7 +110,7 @@ TEST(AdminClient, deleteRecordsFromTopicPartitions)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
             {Headers{}, "key1", "value1"},

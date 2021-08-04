@@ -861,7 +861,7 @@ TEST(KafkaManualCommitConsumer, CommitOffsetBeforeRevolkingPartitions)
 
     std::cout << "[" << Utility::getCurrentTime() << "] Topic[" << topic << "] would be used" << std::endl;
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Prepare some messages to send
     const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
@@ -1453,7 +1453,7 @@ TEST(KafkaManualCommitConsumer, SeekAfterPause)
 {
     const Topic topic = Utility::getRandomString();
 
-    KafkaTestUtility::CreateKafkaTopic(topic, 5, 3);
+    KafkaTestUtility::CreateKafkaTopic(topic, 5, KafkaTestUtility::GetNumberOfKafkaBrokers());
 
     // Produce messages towards topic
     const std::vector<std::tuple<Headers, std::string, std::string>> messages = {
